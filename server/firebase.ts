@@ -6,7 +6,6 @@ import { createApp } from './app.js';
 dotenv.config();
 
 const deepseekApiKey = defineSecret('DEEPSEEK_API_KEY');
-const githubSyncToken = defineSecret('GITHUB_SYNC_TOKEN');
 
 export const api = onRequest(
   {
@@ -14,7 +13,7 @@ export const api = onRequest(
     timeoutSeconds: 120,
     memory: '512MiB',
     maxInstances: 10,
-    secrets: [deepseekApiKey, githubSyncToken],
+    secrets: [deepseekApiKey],
   },
   createApp(),
 );

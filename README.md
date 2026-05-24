@@ -47,7 +47,14 @@ SYNC_PROVIDER=local
 data/sync-state.json
 ```
 
-如果要跨设备、跨服务器同步，可以使用 GitHub Gist：
+部署到 Firebase 时，推荐使用 Firestore：
+
+```env
+SYNC_PROVIDER=firebase_firestore
+FIRESTORE_SYNC_DOC=daily10ideas/sync-state
+```
+
+如果要跨设备、跨服务器同步，也可以使用 GitHub Gist：
 
 ```env
 SYNC_PROVIDER=github_gist
@@ -86,16 +93,14 @@ npx.cmd firebase-tools login
 ```env
 LLM_PROVIDER=deepseek
 DEEPSEEK_MODEL=deepseek-v4-flash
-SYNC_PROVIDER=github_gist
-GITHUB_SYNC_GIST_ID=你的 Gist ID
-GITHUB_SYNC_FILENAME=daily-10-ideas-sync.json
+SYNC_PROVIDER=firebase_firestore
+FIRESTORE_SYNC_DOC=daily10ideas/sync-state
 ```
 
 机密值用 Firebase Secrets 设置：
 
 ```powershell
 npx.cmd firebase-tools functions:secrets:set DEEPSEEK_API_KEY
-npx.cmd firebase-tools functions:secrets:set GITHUB_SYNC_TOKEN
 ```
 
 部署：

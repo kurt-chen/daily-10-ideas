@@ -4,6 +4,7 @@ import { PERSONAS } from './prompt.js';
 import type { Idea, Persona, SyncState } from './types.js';
 
 const DATA_DIR = path.resolve(process.cwd(), 'data');
+const DEFAULT_FIRESTORE_SYNC_DOC = 'daily10ideas/sync-state';
 
 function getSyncFile() {
   return process.env.SYNC_STATE_FILE || path.join(DATA_DIR, 'sync-state.json');
@@ -23,6 +24,10 @@ export const defaultSyncState: SyncState = {
 };
 
 export async function readSyncState(): Promise<SyncState> {
+  if (shouldUseFirestore()) {
+    return readFirestoreSyncState();
+  }
+
   if (shouldUseGitHubGist()) {
     return readGitHubGistSyncState();
   }
@@ -43,6 +48,10 @@ export async function writeSyncState(input: unknown): Promise<SyncState> {
     ...normalizeSyncState(input),
     updatedAt: new Date().toISOString(),
   };
+
+  if (shouldUseFirestore()) {
+    return writeFirestoreSyncState(nextState);
+  }
 
   if (shouldUseGitHubGist()) {
     return writeGitHubGistSyncState(nextState);
@@ -111,6 +120,34 @@ function normalizeIdeas(value: unknown): Idea[] {
       },
     ];
   });
+}
+
+async function readFirestoreSyncState() {
+  const db = await getFirestore();
+  const snapshot = await db.doc(getFirestoreSyncDoc()).get();
+  if (!snapshot.exists) {
+    return defaultSyncState;
+  }
+
+  return normalizeSyncState(snapshot.data());
+}
+
+async function writeFirestoreSyncState(state: SyncState) {
+  const db = await getFirestore();
+  await db.doc(getFirestoreSyncDoc()).set(state, { merge: false });
+  return state;
+}
+
+async function getFirestore() {
+  const admin = await import('firebase-admin');
+  if (!admin.apps.length) {
+    admin.initializeApp();
+  }
+  return admin.firestore();
+}
+
+function getFirestoreSyncDoc() {
+  return process.env.FIRESTORE_SYNC_DOC || DEFAULT_FIRESTORE_SYNC_DOC;
 }
 
 async function readGitHubGistSyncState() {
@@ -186,6 +223,10 @@ function getGitHubGistId() {
 
 function getGitHubSyncFilename() {
   return process.env.GITHUB_SYNC_FILENAME || 'daily-10-ideas-sync.json';
+}
+
+function shouldUseFirestore() {
+  return process.env.SYNC_PROVIDER === 'firebase_firestore' || Boolean(process.env.FIRESTORE_SYNC_DOC);
 }
 
 function shouldUseGitHubGist() {
