@@ -60,6 +60,52 @@ GITHUB_SYNC_FILENAME=daily-10-ideas-sync.json
 
 GitHub token 需要能读取和写入 Gist。
 
+## 部署到 Firebase
+
+这个项目需要同时部署：
+
+- Firebase Hosting：提供 PWA 前端和 HTTPS 域名
+- Cloud Functions for Firebase：提供 `/api/generate` 和 `/api/sync`
+
+先在 Firebase Console 创建项目，然后把项目 ID 写入 `.firebaserc`：
+
+```powershell
+copy .firebaserc.example .firebaserc
+```
+
+把里面的 `your-firebase-project-id` 改成你的 Firebase 项目 ID。
+
+安装/登录 Firebase CLI：
+
+```powershell
+npx.cmd firebase-tools login
+```
+
+为 Functions 准备普通环境变量。Firebase Functions 支持 dotenv 文件；推荐创建一个不提交到 GitHub 的 `.env.<projectId>` 文件：
+
+```env
+LLM_PROVIDER=deepseek
+DEEPSEEK_MODEL=deepseek-v4-flash
+SYNC_PROVIDER=github_gist
+GITHUB_SYNC_GIST_ID=你的 Gist ID
+GITHUB_SYNC_FILENAME=daily-10-ideas-sync.json
+```
+
+机密值用 Firebase Secrets 设置：
+
+```powershell
+npx.cmd firebase-tools functions:secrets:set DEEPSEEK_API_KEY
+npx.cmd firebase-tools functions:secrets:set GITHUB_SYNC_TOKEN
+```
+
+部署：
+
+```powershell
+npm.cmd run deploy:firebase
+```
+
+部署完成后，Firebase 会给出一个 HTTPS Hosting 地址。用手机打开这个地址，再添加到主屏幕。
+
 ## 手机安装
 
 本项目已支持 PWA：

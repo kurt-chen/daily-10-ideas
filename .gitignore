@@ -1,8 +1,12 @@
 node_modules
 dist
+lib
 data
 .env
 .env.local
+.env.*
+!.env.example
+!.env.firebase.example
 coverage
 server.out.log
 server.err.log

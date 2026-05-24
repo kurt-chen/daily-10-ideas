@@ -160,7 +160,7 @@ async function fetchDeepSeekCompletion(payload: Record<string, unknown>) {
 }
 
 export function createConfiguredGenerator(): GenerateIdeas {
-  const provider = (process.env.LLM_PROVIDER || 'openai').toLowerCase();
+  const provider = (process.env.LLM_PROVIDER || 'deepseek').toLowerCase();
 
   if (provider === 'deepseek') {
     return createDeepSeekGenerator();

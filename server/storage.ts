@@ -23,7 +23,7 @@ export const defaultSyncState: SyncState = {
 };
 
 export async function readSyncState(): Promise<SyncState> {
-  if (process.env.SYNC_PROVIDER === 'github_gist') {
+  if (shouldUseGitHubGist()) {
     return readGitHubGistSyncState();
   }
 
@@ -44,7 +44,7 @@ export async function writeSyncState(input: unknown): Promise<SyncState> {
     updatedAt: new Date().toISOString(),
   };
 
-  if (process.env.SYNC_PROVIDER === 'github_gist') {
+  if (shouldUseGitHubGist()) {
     return writeGitHubGistSyncState(nextState);
   }
 
@@ -186,4 +186,8 @@ function getGitHubGistId() {
 
 function getGitHubSyncFilename() {
   return process.env.GITHUB_SYNC_FILENAME || 'daily-10-ideas-sync.json';
+}
+
+function shouldUseGitHubGist() {
+  return process.env.SYNC_PROVIDER === 'github_gist' || Boolean(process.env.GITHUB_SYNC_GIST_ID);
 }
