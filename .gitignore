@@ -1,0 +1,11 @@
+node_modules
+dist
+data
+.env
+.env.local
+coverage
+server.out.log
+server.err.log
+*.log
+playwright-report
+test-results
