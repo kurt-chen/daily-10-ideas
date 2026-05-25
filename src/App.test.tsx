@@ -59,8 +59,9 @@ describe('App', () => {
 
     expect(await screen.findByText('今天想炸开什么问题？')).toBeInTheDocument();
     expect(screen.getByRole('button', { name: '生成10个想法' })).toBeInTheDocument();
-    expect(screen.getByText('疯狂参谋')).toBeInTheDocument();
-    expect(screen.getByText('无禁区发散')).toBeInTheDocument();
+    expect(screen.getAllByText('疯狂参谋').length).toBeGreaterThan(0);
+    expect(screen.getAllByText('无禁区发散').length).toBeGreaterThan(0);
+    expect(screen.getByLabelText('手机快速设置')).toBeInTheDocument();
     expect(screen.getByText('已同步')).toBeInTheDocument();
   });
 

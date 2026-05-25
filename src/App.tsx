@@ -712,6 +712,36 @@ export default function App() {
           </div>
         </header>
 
+        <section className="mobile-tuning-panel" aria-label="手机快速设置">
+          <div className="mobile-control-row">
+            <h2>人格模式</h2>
+            <div className="mobile-mode-scroll">
+              {personas.map((item) => (
+                <button
+                  className={item.value === persona ? 'mode-card selected' : 'mode-card'}
+                  key={item.value}
+                  type="button"
+                  onClick={() => setPersona(item.value)}
+                >
+                  <span>{item.value}</span>
+                  <small>{item.hint}</small>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          <div className="mobile-control-row">
+            <h2>输出数量</h2>
+            <div className="segmented">
+              {counts.map((item) => (
+                <button className={count === item ? 'selected' : ''} key={item} type="button" onClick={() => setCount(item)}>
+                  {item}
+                </button>
+              ))}
+            </div>
+          </div>
+        </section>
+
         <section className="prompt-panel" aria-label="问题输入">
           <textarea
             value={question}
@@ -824,7 +854,7 @@ export default function App() {
           </div>
         </section>
 
-        <section className="control-section">
+        <section className="control-section desktop-persona-section">
           <h2>人格模式</h2>
           <div className="mode-list">
             {personas.map((item) => (
@@ -841,7 +871,7 @@ export default function App() {
           </div>
         </section>
 
-        <section className="control-section">
+        <section className="control-section desktop-count-section">
           <h2>输出数量</h2>
           <div className="segmented">
             {counts.map((item) => (
