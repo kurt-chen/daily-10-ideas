@@ -2,8 +2,9 @@ const fs = require('fs');
 
 const text = fs.readFileSync('.env', 'utf8');
 const key = text.match(/^DEEPSEEK_API_KEY=(.*)$/m)?.[1]?.trim();
+const baseUrl = text.match(/^DEEPSEEK_BASE_URL=(.*)$/m)?.[1]?.trim() || 'https://api.deepseek.com';
 
-fetch('https://api.deepseek.com/models', {
+fetch(`${baseUrl.replace(/\/+$/, '')}/models`, {
   headers: {
     Authorization: `Bearer ${key}`,
     Accept: 'application/json',

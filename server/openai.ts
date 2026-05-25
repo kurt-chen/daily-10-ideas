@@ -1,4 +1,5 @@
 import OpenAI from 'openai';
+import { jsonrepair } from 'jsonrepair';
 import {
   buildDeepSeekSystemPrompt,
   buildInstructions,
@@ -17,11 +18,62 @@ function parseJsonObject(rawText: string) {
     .replace(/^```(?:json)?\s*/i, '')
     .replace(/\s*```$/i, '')
     .trim();
+  const jsonText = extractJsonObjectText(withoutFence);
   try {
-    return JSON.parse(withoutFence);
-  } catch {
-    return JSON.parse(escapeControlCharactersInJsonStrings(withoutFence));
+    return JSON.parse(jsonText);
+  } catch (error) {
+    const repaired = removeTrailingCommasOutsideStrings(escapeControlCharactersInJsonStrings(jsonText));
+    try {
+      return JSON.parse(repaired);
+    } catch {
+      return JSON.parse(jsonrepair(repaired));
+    }
   }
+}
+
+function extractJsonObjectText(text: string) {
+  const start = text.indexOf('{');
+  if (start < 0) {
+    return text;
+  }
+
+  let depth = 0;
+  let inString = false;
+  let escaped = false;
+
+  for (let index = start; index < text.length; index += 1) {
+    const char = text[index];
+
+    if (escaped) {
+      escaped = false;
+      continue;
+    }
+
+    if (char === '\\') {
+      escaped = true;
+      continue;
+    }
+
+    if (char === '"') {
+      inString = !inString;
+      continue;
+    }
+
+    if (inString) {
+      continue;
+    }
+
+    if (char === '{') {
+      depth += 1;
+    } else if (char === '}') {
+      depth -= 1;
+      if (depth === 0) {
+        return text.slice(start, index + 1);
+      }
+    }
+  }
+
+  return text.slice(start);
 }
 
 function escapeControlCharactersInJsonStrings(json: string) {
@@ -59,6 +111,45 @@ function escapeControlCharactersInJsonStrings(json: string) {
       }
       if (char === '\t') {
         output += '\\t';
+        continue;
+      }
+    }
+
+    output += char;
+  }
+
+  return output;
+}
+
+function removeTrailingCommasOutsideStrings(json: string) {
+  let output = '';
+  let inString = false;
+  let escaped = false;
+
+  for (let index = 0; index < json.length; index += 1) {
+    const char = json[index];
+
+    if (escaped) {
+      output += char;
+      escaped = false;
+      continue;
+    }
+
+    if (char === '\\') {
+      output += char;
+      escaped = true;
+      continue;
+    }
+
+    if (char === '"') {
+      output += char;
+      inString = !inString;
+      continue;
+    }
+
+    if (!inString && char === ',') {
+      const nextNonWhitespace = json.slice(index + 1).match(/\S/)?.[0];
+      if (nextNonWhitespace === '}' || nextNonWhitespace === ']') {
         continue;
       }
     }
@@ -116,10 +207,10 @@ export function createDeepSeekGenerator(client?: ChatCompletionsClient): Generat
         { role: 'user', content: buildUserInput(request) },
       ],
       response_format: { type: 'json_object' },
-      temperature: Math.min(2, Math.max(0.2, request.wildness / 55)),
+      thinking: { type: 'disabled' },
+      temperature: Math.min(0.8, Math.max(0.2, request.wildness / 125)),
       max_tokens: request.count >= 50 ? 12000 : request.count >= 20 ? 7000 : 4500,
       stream: false,
-      extra_body: { thinking: { type: 'disabled' } },
     };
 
     const completion = client
@@ -139,7 +230,8 @@ export function createDeepSeekGenerator(client?: ChatCompletionsClient): Generat
 }
 
 async function fetchDeepSeekCompletion(payload: Record<string, unknown>) {
-  const response = await fetch('https://api.deepseek.com/chat/completions', {
+  const baseUrl = (process.env.DEEPSEEK_BASE_URL || 'https://api.deepseek.com').replace(/\/+$/, '');
+  const response = await fetch(`${baseUrl}/chat/completions`, {
     method: 'POST',
     headers: {
       Authorization: `Bearer ${process.env.DEEPSEEK_API_KEY}`,

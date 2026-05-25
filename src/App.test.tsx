@@ -12,13 +12,19 @@ const generatedIdeas = Array.from({ length: 10 }, (_, index) => ({
   riskNote: null,
 }));
 
+function jsonResponse(body: unknown, ok = true) {
+  return {
+    ok,
+    json: async () => body,
+    text: async () => JSON.stringify(body),
+  } as Response;
+}
+
 function mockFetch() {
   return vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
     const url = String(input);
     if (url === '/api/sync' && (!init || init.method !== 'PUT')) {
-      return {
-        ok: true,
-        json: async () => ({
+      return jsonResponse({
           version: 1,
           updatedAt: new Date().toISOString(),
           question: '如何开始做自媒体？',
@@ -29,21 +35,21 @@ function mockFetch() {
           history: [],
           favoriteIds: [],
           ideas: [],
-        }),
-      } as Response;
+        });
     }
     if (url === '/api/sync' && init?.method === 'PUT') {
-      return { ok: true, json: async () => ({}) } as Response;
+      return jsonResponse({});
     }
     if (url === '/api/generate') {
-      return { ok: true, json: async () => ({ ideas: generatedIdeas }) } as Response;
+      return jsonResponse({ ideas: generatedIdeas });
     }
-    return { ok: false, json: async () => ({ error: 'not found' }) } as Response;
+    return jsonResponse({ error: 'not found' }, false);
   });
 }
 
 afterEach(() => {
   vi.restoreAllMocks();
+  vi.unstubAllGlobals();
 });
 
 describe('App', () => {
@@ -68,13 +74,50 @@ describe('App', () => {
     expect(fetchMock).toHaveBeenCalledWith('/api/generate', expect.objectContaining({ method: 'POST' }));
   });
 
+  it('exports the current ideas as Markdown', async () => {
+    mockFetch();
+    const createObjectURL = vi.fn(() => 'blob:daily-10-ideas');
+    const revokeObjectURL = vi.fn();
+    const click = vi.spyOn(HTMLAnchorElement.prototype, 'click').mockImplementation(() => {});
+    vi.stubGlobal('URL', { ...URL, createObjectURL, revokeObjectURL });
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /Markdown/ }));
+
+    expect(createObjectURL).toHaveBeenCalledWith(expect.any(Blob));
+    expect(click).toHaveBeenCalled();
+    const blob = createObjectURL.mock.calls[0][0] as Blob;
+    expect(blob.type).toBe('text/markdown;charset=utf-8');
+    expect(blob.size).toBeGreaterThan(0);
+  });
+
+  it('copies all ideas as Markdown for notebook apps', async () => {
+    mockFetch();
+    const writeText = vi.fn().mockResolvedValue(undefined);
+    Object.assign(navigator, { clipboard: { writeText } });
+    render(<App />);
+
+    fireEvent.click(await screen.findByRole('button', { name: /复制到笔记/ }));
+
+    await waitFor(() => expect(writeText).toHaveBeenCalled());
+    expect(writeText.mock.calls[0][0]).toContain('# 每日10想');
+    expect(writeText.mock.calls[0][0]).toContain('**01. 把问题反过来卖**');
+    expect(writeText.mock.calls[0][0]).toContain('- **角度：**');
+    expect(writeText.mock.calls[0][0]).toContain('- **最佳第一步：**');
+  });
+
+  it('shows a PNG export action', async () => {
+    mockFetch();
+    render(<App />);
+
+    expect(await screen.findByRole('button', { name: /PNG/ })).toBeInTheDocument();
+  });
+
   it('shows API errors without clearing the current ideas', async () => {
     vi.spyOn(globalThis, 'fetch').mockImplementation(async (input, init) => {
       const url = String(input);
       if (url === '/api/sync') {
-        return {
-          ok: true,
-          json: async () => ({
+        return jsonResponse({
             version: 1,
             updatedAt: new Date().toISOString(),
             question: '如何开始做自媒体？',
@@ -85,16 +128,12 @@ describe('App', () => {
             history: [],
             favoriteIds: [],
             ideas: [],
-          }),
-        } as Response;
+          });
       }
       if (url === '/api/generate' && init?.method === 'POST') {
-        return {
-          ok: false,
-          json: async () => ({ error: '缺少 DEEPSEEK_API_KEY。请在 .env 中配置后重试。' }),
-        } as Response;
+        return jsonResponse({ error: '缺少 DEEPSEEK_API_KEY。请在 .env 中配置后重试。' }, false);
       }
-      return { ok: false, json: async () => ({}) } as Response;
+      return jsonResponse({}, false);
     });
 
     render(<App />);

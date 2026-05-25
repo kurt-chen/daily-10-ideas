@@ -25,6 +25,9 @@ afterEach(() => {
   delete process.env.GITHUB_SYNC_GIST_ID;
   delete process.env.GITHUB_SYNC_FILENAME;
   delete process.env.SYNC_STATE_FILE;
+  delete process.env.DEEPSEEK_API_KEY;
+  delete process.env.DEEPSEEK_BASE_URL;
+  delete process.env.DEEPSEEK_MODEL;
 });
 
 describe('api app', () => {
@@ -167,8 +170,34 @@ describe('api app', () => {
       expect.objectContaining({
         model: expect.any(String),
         response_format: { type: 'json_object' },
+        thinking: { type: 'disabled' },
+        temperature: expect.any(Number),
         messages: expect.arrayContaining([expect.objectContaining({ role: 'system' })]),
       }),
+    );
+    expect(create.mock.calls[0][0].temperature).toBeLessThanOrEqual(0.8);
+  });
+
+  it('uses the configured DeepSeek base URL for direct API calls', async () => {
+    process.env.DEEPSEEK_API_KEY = 'test-key';
+    process.env.DEEPSEEK_BASE_URL = 'https://deepseek.example/v1/';
+    const fetchMock = vi.spyOn(globalThis, 'fetch').mockResolvedValue({
+      ok: true,
+      text: async () => JSON.stringify({ choices: [{ message: { content: JSON.stringify({ ideas: ideas(10) }) } }] }),
+    } as Response);
+    const generator = createDeepSeekGenerator();
+
+    await generator({
+      question: '如何发散？',
+      constraints: '',
+      persona: '疯狂参谋',
+      wildness: 90,
+      count: 10,
+    });
+
+    expect(fetchMock).toHaveBeenCalledWith(
+      'https://deepseek.example/v1/chat/completions',
+      expect.objectContaining({ method: 'POST' }),
     );
   });
 
@@ -189,6 +218,63 @@ describe('api app', () => {
 
     expect(response.status).toBe(200);
     expect(response.body.ideas[0].whyItMightWork).toContain('真实用户');
+  });
+
+  it('extracts DeepSeek JSON when the model adds prose around it', async () => {
+    const create = vi.fn().mockResolvedValue({
+      choices: [
+        {
+          message: {
+            content: `没问题，下面是 JSON：\n${JSON.stringify({ ideas: ideas(10) })}\n以上。`,
+          },
+        },
+      ],
+    });
+    const generator = createDeepSeekGenerator({ create });
+    const app = createApp(generator);
+
+    const response = await request(app).post('/api/generate').send({ question: '如何发散？', count: 10 });
+
+    expect(response.status).toBe(200);
+    expect(response.body.ideas).toHaveLength(10);
+  });
+
+  it('repairs DeepSeek JSON with trailing commas outside strings', async () => {
+    const create = vi.fn().mockResolvedValue({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({ ideas: ideas(10) }).replace(/"riskNote":null/g, '"riskNote":null,'),
+          },
+        },
+      ],
+    });
+    const generator = createDeepSeekGenerator({ create });
+    const app = createApp(generator);
+
+    const response = await request(app).post('/api/generate').send({ question: '如何发散？', count: 10 });
+
+    expect(response.status).toBe(200);
+    expect(response.body.ideas).toHaveLength(10);
+  });
+
+  it('repairs DeepSeek JSON with single-quoted property names', async () => {
+    const create = vi.fn().mockResolvedValue({
+      choices: [
+        {
+          message: {
+            content: JSON.stringify({ ideas: ideas(10) }).replace(/"title"/g, "'title'"),
+          },
+        },
+      ],
+    });
+    const generator = createDeepSeekGenerator({ create });
+    const app = createApp(generator);
+
+    const response = await request(app).post('/api/generate').send({ question: '如何发散？', count: 10 });
+
+    expect(response.status).toBe(200);
+    expect(response.body.ideas).toHaveLength(10);
   });
 
   it('returns a clear error when the api key is missing', async () => {
