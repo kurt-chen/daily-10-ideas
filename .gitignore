@@ -13,3 +13,4 @@ server.err.log
 *.log
 playwright-report
 test-results
+.vercel
