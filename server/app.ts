@@ -14,7 +14,7 @@ export function createApp(generateIdeas: GenerateIdeas = createConfiguredGenerat
   app.use(express.json({ limit: '2mb' }));
 
   app.get('/api/health', (_req, res) => {
-    res.json({ ok: true, provider: process.env.LLM_PROVIDER || 'openai' });
+    res.json({ ok: true, provider: process.env.LLM_PROVIDER || 'deepseek' });
   });
 
   app.post('/api/generate', async (req, res) => {

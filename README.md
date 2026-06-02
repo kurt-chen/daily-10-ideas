@@ -29,7 +29,7 @@ http://192.168.1.4:8787/
 ```env
 LLM_PROVIDER=deepseek
 DEEPSEEK_API_KEY=你的 DeepSeek Key
-DEEPSEEK_MODEL=deepseek-v4-flash
+DEEPSEEK_MODEL=deepseek-v4-pro
 PORT=8787
 ```
 
@@ -92,7 +92,7 @@ npx.cmd firebase-tools login
 
 ```env
 LLM_PROVIDER=deepseek
-DEEPSEEK_MODEL=deepseek-v4-flash
+DEEPSEEK_MODEL=deepseek-v4-pro
 SYNC_PROVIDER=firebase_firestore
 FIRESTORE_SYNC_DOC=daily10ideas/sync-state
 ```

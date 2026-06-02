@@ -199,7 +199,7 @@ export function createDeepSeekGenerator(client?: ChatCompletionsClient): Generat
       throw new Error('缺少 DEEPSEEK_API_KEY。请在 .env 中配置后重试。');
     }
 
-    const model = process.env.DEEPSEEK_MODEL || 'deepseek-v4-flash';
+    const model = process.env.DEEPSEEK_MODEL || 'deepseek-v4-pro';
     const payload = {
       model,
       messages: [
